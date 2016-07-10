@@ -10,11 +10,21 @@ namespace monomake
     class Program
     {
         static string AppName = "monomake";
-        static string version = "1.0";
+        static string version = "1.1";
         static string templateDir = "template";
         static string MonoprogPath = "monoprog/monoprog.exe";
         static string EnvironmentDir;
         static string[] projectFiles = { templateDir + "/app_controller.h", templateDir + "/app_controller.cpp" };
+		static string AutoCompleteIncludes = @"-I{0}/mono/include
+-I{0}/mono/include/display
+-I{0}/mono/include/display/ui
+-I{0}/mono/include/display/ili9225g
+-I{0}/mono/include/io
+-I{0}/mono/include/media
+-I{0}/mono/include/mbed/api
+-I{0}/mono/include/mbed/hal
+-I{0}/mono/include/mbed/libraries/fs/sd
+-I{0}/mono/include/mbed/target_cypress";
 
         static void Main(string[] args)
         {
@@ -24,6 +34,14 @@ namespace monomake
             if (args.Count() > 0)
             {
                 var command = args[0];
+
+				if (command == "-c")
+				{
+					EnvironmentDir = args [1];
+					command = args [2];
+					args = args.Skip (2).ToArray();
+				}
+
                 switch (command)
                 {
                     case "project":
@@ -136,6 +154,7 @@ namespace monomake
                 }
 
                 WriteMakefile(name, name + "/Makefile");
+				writeAtomProjectFiles(name);
             }
             catch (Exception e)
             {
@@ -158,6 +177,13 @@ namespace monomake
             Console.WriteLine("Writing Makefile: {0}...", filePath);
             File.WriteAllText(filePath, text.ToString());
         }
+
+		static void writeAtomProjectFiles(string filePath)
+		{
+			var text = String.Format (AutoCompleteIncludes, EnvironmentDir);
+			Console.WriteLine ("Atom Project Settings: Writing Auto complete includes...");
+			File.WriteAllText (filePath + "/.clang_complete", text);
+		}
 
         static void projectCommand(string name = "new_mono_project")
         {
