@@ -10,12 +10,18 @@ namespace monomake
     class Program
     {
         static string AppName = "monomake";
-        static string version = "1.1";
+        static string version = "1.4";
         static string templateDir = "template";
         static string MonoprogPath = "monoprog/monoprog.exe";
+        static string GccIncludePath = "gcc-arm-none-eabi-5_2-2015q4-20151219-win32/arm-none-eabi/include";
         static string EnvironmentDir;
         static string[] projectFiles = { templateDir + "/app_controller.h", templateDir + "/app_controller.cpp" };
-		static string AutoCompleteIncludes = @"-I{0}/mono/include
+        static string[] bareProjectFiles = { templateDir + "/app_controller_bare.h", templateDir + "/app_controller_bare.cpp" };
+        static string AutoCompleteIncludes = @"-I{0}/{1}
+-I{0}/{1}/c++/5.2.1/arm-none-eabi/thumb
+-I{0}/{1}/c++/5.2.1/arm-none-eabi
+-I{0}/{1}/c++/5.2.1
+-I{0}/mono/include
 -I{0}/mono/include/display
 -I{0}/mono/include/display/ui
 -I{0}/mono/include/display/ili9225g
@@ -37,6 +43,7 @@ namespace monomake
 
 				if (command == "-c")
 				{
+                    Console.WriteLine("Running with Environment Dir: {0}", args[1]);
 					EnvironmentDir = args [1];
 					command = args [2];
 					args = args.Skip (2).ToArray();
@@ -45,7 +52,17 @@ namespace monomake
                 switch (command)
                 {
                     case "project":
-                        projectCommand(args.Count() >= 2 ? args[1] : null);
+                        if (args.Count() >= 2)
+                        {
+                            if (args[1] == "--bare")
+                                projectCommand(args.Count() >= 3 ? args[2] : null, true);
+                            else if (args.Count() >= 3 && args[2] == "--bare")
+                                projectCommand(args[1], true);
+                            else
+                                projectCommand(args[1]);
+                        }
+                        else
+                            projectCommand(null);
                         break;
                     case "monoprog":
                         {
@@ -57,16 +74,29 @@ namespace monomake
                         showhelp();
                         break;
                     case "version":
-                        printVersion();
+                        printVersion(args.Length >= 2 && args[1] == "--bare");
                         break;
                     case "path":
-                        Console.WriteLine("Mono Environment Path: {0}", EnvironmentDir);
+                        if (args.Length >= 2 && args[1] == "--bare")
+                            Console.WriteLine(EnvironmentDir);
+                        else
+                            Console.WriteLine("Mono Environment Path: {0}", EnvironmentDir);
                         break;
                     case "-p":
+                        Console.WriteLine("Note: -p is deprecated, use program instead!");
                         programElf(args[1]);
+                        break;
+                    case "program":
+                        programElf(args[1]);
+                        break;
+                    case "detect":
+                        runMonoprog(new[] { "-d" });
                         break;
                     case "reboot":
                         rebootMonoDtr();
+                        break;
+                    case "serial":
+                        listSerials();
                         break;
                     case "writemake":
                         WriteMakefile(args[1], "Makefile");
@@ -128,7 +158,22 @@ namespace monomake
             }
         }
 
-        static void createProjectFolder(string name)
+        static void listSerials()
+        {
+            var info = new ProcessStartInfo();
+            info.FileName = EnvironmentDir + "/reset.exe";
+            info.CreateNoWindow = true;
+            info.UseShellExecute = false;
+            info.RedirectStandardOutput = true;
+            info.Arguments = "--list --bare";
+            using (var p = Process.Start(info))
+            {
+                Console.Write(p.StandardOutput.ReadToEnd());
+                p.WaitForExit();
+            }
+        }
+
+        static void createProjectFolder(string name, bool bare = false)
         {
             if (String.IsNullOrWhiteSpace(name))
             {
@@ -141,16 +186,18 @@ namespace monomake
                 return;
             }
 
-            Console.WriteLine("Creating new mono project: {0}...", name);
+            Console.WriteLine("Creating new {0}mono project: {1}...", bare?"bare ":"",name);
 
             try
             {
                 Directory.CreateDirectory(name);
 
-                foreach (var file in projectFiles)
+                string[] projFiles = bare ? bareProjectFiles : projectFiles;
+
+                foreach (var file in projFiles)
                 {
-                    Console.WriteLine(" * {0}/{1}", name, Path.GetFileName(file));
-                    File.Copy(EnvironmentDir + "/" + file, name + "/" + Path.GetFileName(file), false);
+                    Console.WriteLine(" * {0}/{1}", name, Path.GetFileName(file).Replace("_bare",""));
+                    File.Copy(EnvironmentDir + "/" + file, name + "/" + Path.GetFileName(file).Replace("_bare",""), false);
                 }
 
                 WriteMakefile(name, name + "/Makefile");
@@ -180,20 +227,20 @@ namespace monomake
 
 		static void writeAtomProjectFiles(string filePath)
 		{
-			var text = String.Format (AutoCompleteIncludes, EnvironmentDir);
+			var text = String.Format (AutoCompleteIncludes, EnvironmentDir, GccIncludePath);
 			Console.WriteLine ("Atom Project Settings: Writing Auto complete includes...");
 			File.WriteAllText (filePath + "/.clang_complete", text);
 		}
 
-        static void projectCommand(string name = "new_mono_project")
+        static void projectCommand(string name = "new_mono_project", bool bare = false)
         {
             if (String.IsNullOrWhiteSpace(name))
             {
-                createProjectFolder("new_mono_project");
+                createProjectFolder("new_mono_project", bare);
             }
             else
             {
-                createProjectFolder(name);
+                createProjectFolder(name, bare);
             }
         }
 
@@ -204,21 +251,25 @@ namespace monomake
             
             output.AppendFormat ("Usage:\n{0} COMMAND [options]\n\n",AppName);
             output.Append       ("Commands:\n");
-            output.Append       ("  project [name]  Create a new project folder. Default name is: new_mono_project\n");
-            //Write-Host "  bootldr         See if a mono is connected and in bootloader"
-            output.Append       ("  monoprog [...]  Shortcut to access the MonoProg USB programmer\n");
-            output.Append       ("  -p ELF_FILE     Upload an application to mono\n");
-            output.Append       ("  reboot          Send Reboot command to Mono, using the Arduino DTR method\n");
-            output.AppendFormat ("  version         Display the current version of {0}\n",AppName);
-            output.Append       ("  path            Display the path to the Mono Environment installation dir\n");
+            output.Append       ("  project [--bare] [name]  Create a new project folder. Default name is: new_mono_project\n");
+            output.Append       ("  monoprog [...]           Shortcut to access the MonoProg USB programmer\n");
+            output.Append       ("  program ELF_FILE         Upload an application to mono\n");
+            output.Append       ("  reboot                   Send Reboot command to Mono, using the Arduino DTR method\n");
+            output.Append       ("  detect                   See if a mono is connected and if it is in bootloader\n");
+            output.Append       ("  serial                   Return Mono's serial device COM port\n");
+            output.AppendFormat ("  version [--bare]         Display the current version of {0}\n", AppName);
+            output.Append       ("  path [--bare]            Display the path to the Mono Environment installation dir\n");
 
             Console.Write(output.ToString());
         }
         
 
-        static void printVersion()
+        static void printVersion(bool bare = false)
         {
-            Console.WriteLine("{0} version {1}", AppName, version);
+            if (bare)
+                Console.WriteLine(version);
+            else
+                Console.WriteLine("{0} version {1}", AppName, version);
         }
 
 

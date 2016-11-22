@@ -116,14 +116,20 @@ namespace reset
 
             bool listOnly = findArg("--list", args) || findArg("-l", args);
             bool definedComPort = findArg("--port", args) || findArg("-p", args);
+            bool bare = findArg("--bare", args);
             
             if (listOnly)
             {
                 var ports = SerialPort.GetPortNames();
                 foreach(var p in ports)
                 {
-                    if (TestSerial(p,MONO_VID, MONO_PID))
-                        Console.WriteLine(" - Found Mono Serial Port at: {0}",p);
+                    if (TestSerial(p, MONO_VID, MONO_PID))
+                    {
+                        if (bare)
+                            Console.WriteLine(p);
+                        else
+                            Console.WriteLine(" - Found Mono Serial Port at: {0}", p);
+                    }
                 }
             }
             else if (definedComPort)
