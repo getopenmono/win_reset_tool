@@ -10,7 +10,7 @@ namespace monomake
     class Program
     {
         static string AppName = "monomake";
-        static string version = "1.4";
+        static string version = "1.5";
         static string templateDir = "template";
         static string MonoprogPath = "monoprog/monoprog.exe";
         static string GccIncludePath = "gcc-arm-none-eabi-5_2-2015q4-20151219-win32/arm-none-eabi/include";
@@ -131,11 +131,24 @@ namespace monomake
             info.CreateNoWindow = true;
             info.UseShellExecute = false;
             info.RedirectStandardOutput = true;
-            using (var p = Process.Start(info))
-            {
-                Console.Write(p.StandardOutput.ReadToEnd());
-                p.WaitForExit();
-            }
+            info.RedirectStandardError = true;
+            var p = new Process { StartInfo = info };
+
+            p.OutputDataReceived += (object sender, DataReceivedEventArgs e) => {
+                Console.Write("{0}\n",e.Data);
+            };
+
+            p.ErrorDataReceived += (object sender, DataReceivedEventArgs e) => {
+                Console.Write("{0}\n",e.Data);
+            };
+
+            p.Start();
+            p.BeginOutputReadLine();
+            p.BeginErrorReadLine();
+                
+            p.WaitForExit();
+            Console.Out.Write(Console.Out.NewLine);
+            p.Dispose();
         }
 
         static void programElf(string elfFile)
@@ -151,9 +164,21 @@ namespace monomake
             info.CreateNoWindow = true;
             info.UseShellExecute = false;
             info.RedirectStandardOutput = true;
+            info.RedirectStandardError = true;
             using (var p = Process.Start(info))
             {
-                Console.Write(p.StandardOutput.ReadToEnd());
+                p.OutputDataReceived += (object sender, DataReceivedEventArgs e) =>
+                {
+                    Console.Write("{0}\n",e.Data);
+                };
+
+                p.ErrorDataReceived += (object sender, DataReceivedEventArgs e) =>
+                {
+                    Console.Write("{0}\n",e.Data);
+                };
+
+                p.BeginOutputReadLine();
+                p.BeginErrorReadLine();
                 p.WaitForExit();
             }
         }
