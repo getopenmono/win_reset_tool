@@ -241,7 +241,7 @@ namespace monomake
             var text = new StringBuilder();
             text.AppendFormat("\n# Makefile created by {0}, {1}\n", AppName, DateTime.Now.ToString());
             text.AppendFormat("# Project: {0}\n\n", name);
-            text.AppendFormat("MONO_PATH=$(shell monomake path --bare)\n");
+            text.AppendFormat("MONO_PATH=$(subst \\,/,$(shell monomake path --bare))\n");
             text.AppendFormat("include $(MONO_PATH)/predefines.mk\n\n");
             text.AppendFormat("TARGET={0}\n\n", name);
             text.AppendFormat("include $(MONO_PATH)/mono.mk\n");
@@ -272,7 +272,7 @@ namespace monomake
         static void showhelp()
         {
             var output = new StringBuilder();
-            output.Append("OpenMono project PowerShell utility, creating new projects and access to monoprog\n\n");
+            output.Append("OpenMono SDK command line utility, for creating new projects and access to monoprog\n\n");
 
             output.AppendFormat ("Usage:\n{0} COMMAND [options]\n\n",AppName);
             output.Append       ("Commands:\n");
