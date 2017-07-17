@@ -145,7 +145,7 @@ namespace monomake
             p.Start();
             p.BeginOutputReadLine();
             p.BeginErrorReadLine();
-                
+
             p.WaitForExit();
             Console.Out.Write(Console.Out.NewLine);
             p.Dispose();
@@ -241,7 +241,7 @@ namespace monomake
             var text = new StringBuilder();
             text.AppendFormat("\n# Makefile created by {0}, {1}\n", AppName, DateTime.Now.ToString());
             text.AppendFormat("# Project: {0}\n\n", name);
-            text.AppendFormat("MONO_PATH={0}\n", EnvironmentDir.Replace("\\","/"));
+            text.AppendFormat("MONO_PATH=$(shell monomake path --bare)\n");
             text.AppendFormat("include $(MONO_PATH)/predefines.mk\n\n");
             text.AppendFormat("TARGET={0}\n\n", name);
             text.AppendFormat("include $(MONO_PATH)/mono.mk\n");
@@ -273,7 +273,7 @@ namespace monomake
         {
             var output = new StringBuilder();
             output.Append("OpenMono project PowerShell utility, creating new projects and access to monoprog\n\n");
-            
+
             output.AppendFormat ("Usage:\n{0} COMMAND [options]\n\n",AppName);
             output.Append       ("Commands:\n");
             output.Append       ("  project [--bare] [name]  Create a new project folder. Default name is: new_mono_project\n");
@@ -287,7 +287,7 @@ namespace monomake
 
             Console.Write(output.ToString());
         }
-        
+
 
         static void printVersion(bool bare = false)
         {
